@@ -1,0 +1,128 @@
+#!/bin/bash
+
+BRANCH=""
+VERSION=""
+ISODIR=""
+RCLONEDIR=""
+
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    --branch)
+    BRANCH="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --version)
+    VERSION="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --isodir)
+    ISODIR="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --rclone)
+    RCLONEDIR="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --debug)
+    OPTIONS="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    echo "Unknown option: $1"
+    exit 1
+    ;;
+esac
+done
+
+if [ -z "$ISODIR" ]
+then
+    echo "No profile directory specified. Please provide profile directory using --isodir %dir% option."
+    exit 1
+fi
+
+genvariables(){
+    git pull && \
+    sudo umount -fl ~/buildwork/x86_64/airootfs/* || /bin/true && \
+    sudo rm -rf ~/buildwork && \
+    sudo rm -rf /tmp/archiso* && \
+    hash=$(echo $RANDOM | md5sum | head -c 10; echo;) && \
+    hash_build=$(echo $RANDOM | md5sum | head -c 5; echo;) && \
+    repo_branch=$(git rev-parse --abbrev-ref HEAD) && \
+    echo "$repo_branch" > /tmp/repobranch_holoiso && \
+    sudo rm -rf /tmp/*_holoiso && \
+    echo "$hash" > /tmp/buildhash_holoiso && \
+    echo "$hash_build" > /tmp/imagehash_holoiso && \
+    echo "$VERSION" > /tmp/versioninfo_holoiso && \
+    echo "$BRANCH" > /tmp/buildbranch_holoiso &&
+    PROJECTNAME=$(cat $ISODIR/profiledef.sh | grep iso_application | cut -d '=' -f 2 | sed 's/\"//g') && \
+    echo "$PROJECTNAME" > /tmp/build_projectname && \
+    echo "${PROJECTNAME}_${VERSION}_${repo_branch}-$(date +%Y%m%d)_${hash}_${BRANCH}" > /tmp/isobuildname
+}
+
+checkupload(){
+    if [ -z "$RCLONEDIR" ]
+    then
+        echo "Note: rclone copy directory wasn't specified. This build will be located in /tmp/archiso-out-$hash after finishing."
+        exit 1
+    fi
+}
+if [ -z "$BRANCH" ] || [ -z "$VERSION" ]
+then
+    echo "Both branch name and version are required. Please provide branch name using --branch %branch% and version using --version %version% options."
+    exit 1
+fi
+
+notifytg_trigger(){
+    if [[ $(command -v telemsg) ]]; then
+        if [[ "$OPTIONS" == "print" ]]; then
+            telemsg "<b>Build has been triggered for:</b> <code>holoiso-$(git rev-parse --abbrev-ref HEAD)_$BRANCH</code>\n\nBranch: <code>$(git rev-parse --abbrev-ref HEAD)</code> \n\n<b>Following was added since 'debug' build was requested.</b> \n\nBuild hash: $(echo -e "#$hash") \n\n<b>Hash:</b> <code>$hash</code> \n<b>Image hash:</b> <code>HOLO_$hash_build</code> \n<b>Version:</b> <code>$VERSION</code> \n<b>Build branch:</b> <code>$BRANCH</code> \n<b>Project name:</b> <code>$PROJECTNAME</code> \n<b>Image filename:</b> <code>$(cat /tmp/isobuildname)-1-x86_64.iso</code>"
+        else
+            telemsg "<b>Build has been triggered for:</b> <code>holoiso-$(git rev-parse --abbrev-ref HEAD)_$BRANCH</code> \n\nBranch: <code>$(git rev-parse --abbrev-ref HEAD)</code> \n\nBuild hash: $(echo -e "#$hash")"
+        fi
+    else
+        echo "No CI reporting"
+    fi
+}
+
+notifytg_starting(){
+    if [[ $(command -v telemsg) ]]; then
+        telemsg "<b>Starting build for $(echo -e "#$hash") on $(nproc) threads</b> \n\nBuild: <code>holoiso-$(git rev-parse --abbrev-ref HEAD)</code> \n\nImage version: <code>$(date +%Y%m%d)_$(cat /tmp/buildhash_holoiso)$(cat /tmp/buildbranch_holoiso)</code> \n\nExpected image filename: <code>$(cat /tmp/isobuildname)-1-x86_64.iso</code>"
+    else
+        echo "No CI reporting"
+    fi
+}
+
+notifytg_finish(){
+    if [[ $(command -v telemsg) ]]; then
+        telemsg "<b>Build finished for $(echo -e "#$hash")</b> \nFilename: <code>$(ls /tmp/archiso-out-$hash)</code> \n\nCopying ISO image..."
+    else
+        echo "No CI reporting"
+    fi
+}
+
+notifytg_upload(){
+    if [[ $(command -v telemsg) ]]; then
+        rclone copy -P $(find /tmp/archiso-out-$hash | tail -n +2) $RCLONEDIR && \
+        telemsg "<b>$(ls /tmp/archiso-out-$hash)</b> \n\nBuild target: $(echo -e "#$hash") \n\nLink: https://gdrivecdn.thevakhovske.pw/3:/daily_ci/$(ls /tmp/archiso-out-$hash)"
+    else
+        echo "No CI reporting and build uploading."
+    fi
+}
+
+# Actual build progress itself
+cd $ISODIR && \
+genvariables && \
+checkupload && \
+notifytg_trigger && \
+notifytg_starting && \
+sudo mkarchiso-holoiso -v -w ~/buildwork -o /tmp/archiso-out-$hash $ISODIR && \
+notifytg_finish && \
+notifytg_upload && cd -

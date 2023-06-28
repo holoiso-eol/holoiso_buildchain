@@ -356,7 +356,7 @@ _make_packages() {
         env -u TMPDIR pacstrap -C "${work_dir}/${buildmode}.pacman.conf" -c -G -M -- "${pacstrap_dir}" "${buildmode_pkg_list[@]}" &> /dev/null
     else
         env -u TMPDIR pacstrap -C "${work_dir}/${buildmode}.pacman.conf" -c -G -M -- "${pacstrap_dir}" "${buildmode_pkg_list[@]}"
-        env -u TMPDIR pacstrap -C "${work_dir}/${buildmode}.pacman.conf" -c -G -M -- "${pacstrap_dir}" "${profile}/kernel_list.bootstrap"
+        env -u TMPDIR pacstrap -C "${work_dir}/${buildmode}.pacman.conf" -c -G -M -- "${pacstrap_dir}" $(cat "${profile}/kernel_list.bootstrap")
         cp -r "${profile}/kernel_list.bootstrap" "${pacstrap_dir}/etc/holoinstall/post_install"
         env -u TMPDIR arch-chroot "${pacstrap_dir}" chmod +x /etc/holoinstall/pre_install/iso_build_deps.sh
         env -u TMPDIR arch-chroot "${pacstrap_dir}" /etc/holoinstall/pre_install/iso_build_deps.sh

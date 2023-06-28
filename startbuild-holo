@@ -25,7 +25,7 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    --rclone)
+    --copy)
     RCLONEDIR="$2"
     shift # past argument
     shift # past value
@@ -70,7 +70,7 @@ genvariables(){
 checkupload(){
     if [ -z "$RCLONEDIR" ]
     then
-        echo "Note: rclone copy directory wasn't specified. This build will be located in /tmp/archiso-out-$hash after finishing."
+        echo "Note: copy directory wasn't specified. This build will be located in /tmp/archiso-out-$hash after finishing."
         exit 1
     fi
 }
@@ -110,8 +110,8 @@ notifytg_finish(){
 
 notifytg_upload(){
     if [[ $(command -v telemsg) ]]; then
-        rclone copy -P $(find /tmp/archiso-out-$hash | tail -n +2) $RCLONEDIR && \
-        telemsg "<b>$(ls /tmp/archiso-out-$hash)</b> \n\nBuild target: $(echo -e "#$hash") \n\nLink: https://gdrivecdn.thevakhovske.pw/3:/daily_ci/$(ls /tmp/archiso-out-$hash)"
+        mcli cp $(find /tmp/archiso-out-$hash | tail -n +2) holoiso/holoiso/$RCLONEDIR && \
+        telemsg "<b>$(ls /tmp/archiso-out-$hash)</b> \n\nBuild target: $(echo -e "#$hash") \n\nLink: https://cdn.holoiso.ru.eu.org/$RCLONEDIR/$(ls /tmp/archiso-out-$hash)"
     else
         echo "No CI reporting and build uploading."
     fi

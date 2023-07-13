@@ -50,6 +50,7 @@ fi
 
 genvariables(){
     git pull && \
+    sudo umount -fl ~/buildwork/x86_64/airootfs/var/cache/pacman/pkg && \
     sudo umount -fl ~/buildwork/x86_64/airootfs/* || /bin/true && \
     sudo rm -rf ~/buildwork && \
     sudo rm -rf /tmp/archiso* && \

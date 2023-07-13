@@ -159,8 +159,6 @@ _cleanup_pacstrap_dir() {
     [[ -d "${pacstrap_dir}/var/lib/pacman" ]] && find "${pacstrap_dir}/var/lib/pacman" -maxdepth 1 -type f -delete
     # Delete pacman database sync cache
     [[ -d "${pacstrap_dir}/var/lib/pacman/sync" ]] && find "${pacstrap_dir}/var/lib/pacman/sync" -delete
-    # Delete pacman package cache
-    [[ -d "${pacstrap_dir}/var/cache/pacman/pkg" ]] && find "${pacstrap_dir}/var/cache/pacman/pkg" -type f -delete
     # Delete all log files, keeps empty dirs.
     [[ -d "${pacstrap_dir}/var/log" ]] && find "${pacstrap_dir}/var/log" -type f -delete
     # Delete all temporary files and dirs
@@ -358,9 +356,11 @@ _make_packages() {
         env -u TMPDIR pacstrap -C "${work_dir}/${buildmode}.pacman.conf" -c -G -M -- "${pacstrap_dir}" "${buildmode_pkg_list[@]}"
         env -u TMPDIR pacstrap -C "${work_dir}/${buildmode}.pacman.conf" -c -G -M -- "${pacstrap_dir}" $(cat "${profile}/kernel_list.bootstrap")
         cp -r "${profile}/kernel_list.bootstrap" "${pacstrap_dir}/etc/holoinstall/post_install"
+        mount --bind /var/cache/pacman/pkg ${pacstrap_dir}/var/cache/pacman/pkg
         env -u TMPDIR arch-chroot "${pacstrap_dir}" chmod +x /etc/holoinstall/pre_install/iso_build_deps.sh
         env -u TMPDIR arch-chroot "${pacstrap_dir}" /etc/holoinstall/pre_install/iso_build_deps.sh
         env -u TMPDIR arch-chroot "${pacstrap_dir}" pacman -Q > /${image_name:-None}-PKGLIST.pacman
+        umount -fl ${pacstrap_dir}/var/cache/pacman/pkg 
     fi
 
     if [[ -v cert_list[0] ]]; then

@@ -66,6 +66,10 @@ genvariables(){
     PROJECTNAME=$(cat $ISODIR/profiledef.sh | grep iso_application | cut -d '=' -f 2 | sed 's/\"//g') && \
     echo "$PROJECTNAME" > /tmp/build_projectname && \
     echo "${PROJECTNAME}_${VERSION}_${repo_branch}-$(date +%Y%m%d)_${hash}_${BRANCH}" > /tmp/isobuildname
+    rm -rf efiboot/loader/entries/*
+    echo "Generating boot entries for: $(cat kernel_list.bootstrap)"
+    bash gen_entries.sh $ISODIR
+    sleep 5
 }
 
 checkupload(){
@@ -126,4 +130,4 @@ notifytg_trigger && \
 notifytg_starting && \
 sudo mkarchiso-holoiso -v -w ~/buildwork -o /tmp/archiso-out-$hash $ISODIR && \
 notifytg_finish && \
-notifytg_upload && cd -
+notifytg_upload && rm -rf efiboot/loader/entries/* && cd -
